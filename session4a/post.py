@@ -2,12 +2,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # area under gaussian
-def events(amp,sigma):
-    return amp*sigma*((2*np.pi)**0.5)
+def events(amp):
+    return amp # turns out we are using a function that is already normalized
 
-def events_err(amp,amp_err,sigma,sigma_err):
-    N = events(amp,sigma)
-    return N*np.sqrt((amp_err/amp)**2+(sigma_err/sigma)**2)
+def events_err(amp_err):
+    return amp_err # turns out we are using a function that is already normalized
 
 def solid_angle(a,d):
     return 2*np.pi*(1-d/np.sqrt(d**2+a**2))
@@ -19,8 +18,8 @@ def epsilon_tot(N,A,t,I):
     return N/(A*t*I)
 
 def epsilon_tot_err(epsilon_tot,amp,amp_err,sigma,sigma_err):
-    N_err = events_err(amp,amp_err,sigma,sigma_err)
-    N = events(amp,sigma)
+    N_err = events_err(amp_err)
+    N = events(amp)
     return epsilon_tot*N_err/N
 
 def epsilon_int(N,A,t,I,d,a):
@@ -66,7 +65,7 @@ tot_eff_dist = []
 tot_eff_dist_errs = []
 for i in range(len(distances)):
     A = activity(A0s[0],dts[0],T2s[0])*3.7*10**4 # calculate acitvity for 137Cs # convert from microCurie to disintegrations/sec
-    N = events(amps[i],sigmas[i])
+    N = events(amps[i])
     tot_eff = epsilon_tot(N,A,ts_dist[i],0.8501)
     tot_eff_dist.append(tot_eff)
     tot_eff_dist_err = epsilon_tot_err(tot_eff,amps[i],amp_errs[i],sigmas[i],sigma_errs[i])
@@ -118,7 +117,7 @@ conversion_factors = [10**3,10**3,3.7*10**4,10**3,10**3]
 tekst = [] # re-initialize tekst
 for i in range(len(Es)):
     A = activity(A0s[source_indices[i]],dts[source_indices[i]],T2s[source_indices[i]])*conversion_factors[i]# calculate acitvity for sources, convert to disintegrations/sec
-    N = events(amps[i],sigmas[i])
+    N = events(amps[i])
     tot_eff = epsilon_tot(N,A,ts_all[i],Is[i])
     tot_eff_all.append(tot_eff)
     tot_eff_err = epsilon_tot_err(tot_eff,amps[i],amp_errs[i],sigmas[i],sigma_errs[i])
@@ -132,10 +131,11 @@ np.savetxt('int_eff.txt', tekst, fmt='%s')
 
 xdata = np.arange(0,1400,100)
 popt, pcov = curve_fit(my_function3, np.array(Es),np.array(tot_eff_all))
-plt.plot(xdata, my_function3(xdata, *popt), color='red', label='Fitted Curve')
-plt.errorbar(Es, tot_eff_all, yerr=tot_eff_all_errs, fmt='o', color='blue')
+plt.plot(xdata, my_function3(xdata, *popt), color='red', label='Fitted line')
+plt.errorbar(Es, tot_eff_all, yerr=tot_eff_all_errs, fmt='o', color='blue', label='energy peaks')
 plt.title("Total peak efficiency as a function of energy",fontsize=16)
 plt.xlabel("keV",fontsize=14)
 plt.ylabel("detector efficiency",fontsize=14)
+plt.legend()
 plt.savefig("figures/tot_peak_eff_all.png")
 plt.close()
