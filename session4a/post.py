@@ -73,7 +73,7 @@ for i in range(len(distances)):
     tot_eff_dist_errs.append(tot_eff_dist_err)
     Omega = solid_angle(2.54,distances[i])
     Omega_err = solid_angle_err(2.54,distances[i],distance_errs[i])
-    tekst.append(f"{Sources[0]} & {tot_eff} & {distances[i]} & {Omega} $\pm$ {Omega_err} \\\\")
+    tekst.append(f"{Sources[0]} & {tot_eff} $\pm$ {tot_eff_dist_err} & {distances[i]} & {Omega} $\pm$ {Omega_err} \\\\")
 
 np.savetxt('tot_eff.txt', tekst, fmt='%s')
 
@@ -83,10 +83,14 @@ def my_function(x, a,b,c):
     """Solid angle function"""
     return a *x/np.sqrt(x**2+b)+c
 def my_function2(x,a):
+    "simple parabola"
     return a/(x**2)
+def my_function3(x,a,b):
+    "line"
+    return a*x+b
 xdata = np.arange(5,21,0.5)
-popt, pcov = curve_fit(my_function, np.array(distances),np.array(tot_eff_dist))
-plt.plot(xdata, my_function(xdata, *popt), color='red', label='Fitted Curve')
+popt, pcov = curve_fit(my_function2, np.array(distances),np.array(tot_eff_dist))
+plt.plot(xdata, my_function2(xdata, *popt), color='red', label='Fitted Curve')
 plt.errorbar(distances, tot_eff_dist, yerr=tot_eff_dist_errs,label= "137Cs 662keV peak", fmt='o',color='blue')
 plt.title("Total peak efficiency as a function of \n distance between detector and source",fontsize=16)
 plt.xlabel('cm',fontsize=14)
@@ -122,10 +126,13 @@ for i in range(len(Es)):
     int_eff = epsilon_int(N,A,ts_all[i],Is[i],distances[0],2.9)
     Omega = solid_angle(2.54,5)
     Omega_err = solid_angle_err(2.54,5,0.1)
-    int_eff_err = epsilon_int_err(int_eff,tot_eff,tot_eff_err)
+    int_eff_err = epsilon_int_err(int_eff,tot_eff,tot_eff_err,Omega,Omega_err)
     tekst.append(f"{Sources[source_indices[i]]} & {Es[i]} & {int_eff} \$ \pm \$ {int_eff_err}\\\\")
 np.savetxt('int_eff.txt', tekst, fmt='%s')
 
+xdata = np.arange(0,1400,100)
+popt, pcov = curve_fit(my_function3, np.array(Es),np.array(tot_eff_all))
+plt.plot(xdata, my_function3(xdata, *popt), color='red', label='Fitted Curve')
 plt.errorbar(Es, tot_eff_all, yerr=tot_eff_all_errs, fmt='o', color='blue')
 plt.title("Total peak efficiency as a function of energy",fontsize=16)
 plt.xlabel("keV",fontsize=14)
