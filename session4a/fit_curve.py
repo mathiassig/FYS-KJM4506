@@ -11,6 +11,7 @@ Co_gamma_2 = 1332.5   # keV.
 
 # kalibreringsdata
 x_data = np.array([120.6,183.6])
+x_errors = np.array([0.0,0.2])
 y_data = np.array([Ba_gamma_1,Ba_gamma_2])
 
 # Definer en funksjon som beskriver kurven vi ønsker å tilpasse
@@ -31,11 +32,11 @@ x_fit = np.linspace(min(x_data), max(x_data), 100)
 y_fit = line(x_fit, a, b)
 
 # Plotting av data og tilpasset kurve
-plt.scatter(x_data, y_data, label='Data', color='red')
-plt.plot(x_fit, y_fit, label='Tilpasset kurve', color='blue')
+plt.errorbar(x_data, y_data, xerr=x_errors, fmt='o',label='Data', color='red')
+plt.plot(x_fit, y_fit, label='Fitted line', color='blue')
 plt.xlabel('channel number')
 plt.ylabel('keV')
-plt.title('Kurvetilpasning')
+plt.title('Calibration linear fit')
 plt.legend()
 plt.grid()
 plt.show()
