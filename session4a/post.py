@@ -1,16 +1,35 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+# area under gaussian
+def events(amp,sigma):
+    return amp*sigma*((2*np.pi)**0.5)
+
+def events_err(amp,amp_err,sigma,sigma_err):
+    N = events(amp,sigma)
+    return N*np.sqrt((amp_err/amp)**2+(sigma_err/sigma)**2)
+
 def solid_angle(a,d):
     return 2*np.pi*(1-d/np.sqrt(d**2+a**2))
 
+def solid_angle_err(a,d,d_err):
+    return a**2/((d**2+a**2)**1.5)*d_err
+
 def epsilon_tot(N,A,t,I):
     return N/(A*t*I)
+
+def epsilon_tot_err(epsilon_tot,amp,amp_err,sigma,sigma_err):
+    N_err = events_err(amp,amp_err,sigma,sigma_err)
+    N = events(amp,sigma)
+    return epsilon_tot*N_err/N
 
 def epsilon_int(N,A,t,I,d,a):
     Omega = solid_angle(a,d)
     Total = epsilon_tot(N,A,t,I)
     return Total*4*np.pi/Omega
+
+def epsilon_int_err(epsilon_int,epsilon_tot,epsilon_tot_err,Omega,Omega_err):
+    return epsilon_int*np.sqrt((epsilon_tot_err/epsilon_tot)**2+(Omega_err/Omega)**2)
 
 def activity(A0,t,T2):
     lam = np.log(2)/T2
@@ -29,9 +48,7 @@ for i in range(len(A0s)):
 # Skrive til fil
 np.savetxt('activity.txt', tekst, fmt='%s')
 
-# area under gaussian
-def events(amp,sigma):
-    return amp*sigma*((2*np.pi)**0.5)
+
 
 
 ####### Distances, 137Cs #####################
@@ -52,9 +69,11 @@ for i in range(len(distances)):
     N = events(amps[i],sigmas[i])
     tot_eff = epsilon_tot(N,A,ts_dist[i],0.8501)
     tot_eff_dist.append(tot_eff)
-    tot_eff_dist_errs.append()
+    tot_eff_dist_err = epsilon_tot_err(tot_eff,amps[i],amp_errs[i],sigmas[i],sigma_errs[i])
+    tot_eff_dist_errs.append(tot_eff_dist_err)
     Omega = solid_angle(2.54,distances[i])
-    tekst.append(f"{Sources[0]} & {tot_eff} & {distances[i]} & {Omega}\\\\")
+    Omega_err = solid_angle_err(2.54,distances[i],distance_errs[i])
+    tekst.append(f"{Sources[0]} & {tot_eff} & {distances[i]} & {Omega} $\pm$ {Omega_err} \\\\")
 
 np.savetxt('tot_eff.txt', tekst, fmt='%s')
 
@@ -69,9 +88,9 @@ xdata = np.arange(5,21,0.5)
 popt, pcov = curve_fit(my_function, np.array(distances),np.array(tot_eff_dist))
 plt.plot(xdata, my_function(xdata, *popt), color='red', label='Fitted Curve')
 plt.errorbar(distances, tot_eff_dist, yerr=tot_eff_dist_errs,label= "137Cs 662keV peak", fmt='o',color='blue')
-plt.title("Total peak efficiency as a function of \n distance between detector and source")
-plt.xlabel('cm')
-plt.ylabel("detector efficiency")
+plt.title("Total peak efficiency as a function of \n distance between detector and source",fontsize=16)
+plt.xlabel('cm',fontsize=14)
+plt.ylabel("detector efficiency",fontsize=14)
 plt.legend()
 plt.savefig("figures/tot_peak_eff_dist.png")
 plt.close()
@@ -98,14 +117,18 @@ for i in range(len(Es)):
     N = events(amps[i],sigmas[i])
     tot_eff = epsilon_tot(N,A,ts_all[i],Is[i])
     tot_eff_all.append(tot_eff)
+    tot_eff_err = epsilon_tot_err(tot_eff,amps[i],amp_errs[i],sigmas[i],sigma_errs[i])
+    tot_eff_all_errs.append(tot_eff_err)
     int_eff = epsilon_int(N,A,ts_all[i],Is[i],distances[0],2.9)
-    int_eff_err = 
+    Omega = solid_angle(2.54,5)
+    Omega_err = solid_angle_err(2.54,5,0.1)
+    int_eff_err = epsilon_int_err(int_eff,tot_eff,tot_eff_err)
     tekst.append(f"{Sources[source_indices[i]]} & {Es[i]} & {int_eff} \$ \pm \$ {int_eff_err}\\\\")
 np.savetxt('int_eff.txt', tekst, fmt='%s')
 
 plt.errorbar(Es, tot_eff_all, yerr=tot_eff_all_errs, fmt='o', color='blue')
-plt.title("Total peak efficiency as a function of energy")
-plt.xlabel("keV")
-plt.ylabel("detector efficiency")
+plt.title("Total peak efficiency as a function of energy",fontsize=16)
+plt.xlabel("keV",fontsize=14)
+plt.ylabel("detector efficiency",fontsize=14)
 plt.savefig("figures/tot_peak_eff_all.png")
 plt.close()
