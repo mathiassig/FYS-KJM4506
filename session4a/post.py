@@ -72,7 +72,7 @@ for i in range(len(distances)):
     tot_eff_dist_errs.append(tot_eff_dist_err)
     Omega = solid_angle(2.54,distances[i])
     Omega_err = solid_angle_err(2.54,distances[i],distance_errs[i])
-    tekst.append(f"{Sources[0]} & {tot_eff} $\pm$ {tot_eff_dist_err} & {distances[i]} & {Omega} $\pm$ {Omega_err} \\\\")
+    tekst.append(f"{Sources[0]} &$ {tot_eff:2f} \pm {tot_eff_dist_err:2f}$ &$ {distances[i]:1f} \pm {distance_errs[i]} $& ${Omega:2f} \pm {Omega_err:2f} $ \\\\")
 
 np.savetxt('tot_eff.txt', tekst, fmt='%s')
 
@@ -126,7 +126,7 @@ for i in range(len(Es)):
     Omega = solid_angle(2.54,5)
     Omega_err = solid_angle_err(2.54,5,0.1)
     int_eff_err = epsilon_int_err(int_eff,tot_eff,tot_eff_err,Omega,Omega_err)
-    tekst.append(f"{Sources[source_indices[i]]} & {Es[i]} & {int_eff} \$ \pm \$ {int_eff_err}\\\\")
+    tekst.append(f"{Sources[source_indices[i]]} & {Es[i]} & ${int_eff:2f}  \pm  {int_eff_err:2f}$\\\\")
 np.savetxt('int_eff.txt', tekst, fmt='%s')
 
 xdata = np.arange(0,1400,100)
