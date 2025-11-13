@@ -196,7 +196,7 @@ class ManageData:
             if self.model == "normal":
                 A_err, mu_err, sigma_err= np.sqrt(np.diag(self.pcov)) # , slope_err, intercept_err 
                 tekst = f'fit:\n' + f'$\mu = {self.popt[1]:.1f} \pm {mu_err:.1f}$,\n'
-                tekst += f'$\sigma = {self.popt[2]:.1f} \pm {sigma_err:.1f}$\n'
+                tekst += f'$\sigma = {self.popt[2]:.3f} \pm {sigma_err:.3f}$\n'
                 tekst+= f'$A = {self.popt[0]} \pm {A_err:.1f}$\n'
                 print(tekst)
                 # label += f'intercept = {self.popt[4]:.1f} $\pm$ {intercept_err:.1f}\n'
@@ -323,8 +323,8 @@ if __name__ == "__main__":
     shapingtime_plot = False
     calibration_plot_germanium = False
     calibration_switch = True
-    fit_switch = False # whether to fit peaks with gaussian or not
-    calibration_coeffs = [0.26479855845655886,0.19007627854983625,0] # last one is dummy, order is reversed because of how class uses them
+    fit_switch = True # whether to fit peaks with gaussian or not
+    calibration_coeffs = [-0.26479855845655886,0.19007627854983625,0] # last one is dummy, order is reversed because of how class uses them
 
     Ba_gamma_1 = 81.0 # keV
     Ba_gamma_2 = 356 # keV
@@ -406,11 +406,13 @@ if __name__ == "__main__":
             if source=="133Ba":
                 if fit_switch:
                     data.plot_data(show_plot=False, label=rf"{source} data")
-                    adjust = -50
+                    max = int((Ba_gamma_1-calibration_coeffs[0])/calibration_coeffs[1]) # bin number of peak, found from energy level
+                    adjust = 0
+                    width =20
                     data.get_fit(
-                        curve_start = 50 - adjust,
-                        curve_stop = 200 + adjust,
-                        init_guess = [10000, Ba_gamma_1, 20],   # Amplitude, mean, variance Guess for normal distribution
+                        curve_start = max -width+adjust,
+                        curve_stop = max +width+adjust,
+                        init_guess = [10000, Ba_gamma_1, width],   # Amplitude, mean, variance Guess for normal distribution
                         plot_fit = True,
                         show_plot = False, # plotting more peaks
                         model = "normal"
@@ -418,51 +420,55 @@ if __name__ == "__main__":
                     data2 = ManageData(f"HPGe_{source}.Spe",calibration_coeffs=calibration_coeffs)
                     data2.calibrate_data(calibration=calibration_switch, background=background.signal, scale=False)
                     data2.plot_data(show_plot=False, label=rf"{source} data")
-                    adjust = -50
+                    max = int((Ba_gamma_2-calibration_coeffs[0])/calibration_coeffs[1]) # bin number of peak, found from energy level
+                    width =10
                     data2.get_fit(
-                        curve_start = 370 - adjust,
-                        curve_stop = 600 + adjust,
-                        init_guess = [10000, Ba_gamma_2, 20],   # Amplitude, mean, variance. Guess for normal distribution 
+                        curve_start = max - width,
+                        curve_stop = max + width,
+                        init_guess = [20000, Ba_gamma_2, width],   # Amplitude, mean, variance Guess for normal distribution
                         plot_fit = True,
-                        show_plot = True,
+                        show_plot = True, # show after peak plotted
                         model = "normal"
-                    )
+                    ) 
                 else:
                     data.plot_data(show_plot=True, label=rf"{source} data")
             elif source=="60Co":
                 if fit_switch:
                     data.plot_data(show_plot=False, label=rf"{source} data")
-                    adjust = -50
+                    max = int((Co_gamma_1-calibration_coeffs[0])/calibration_coeffs[1]) # bin number of peak, found from energy level
+                    width =10
                     data.get_fit(
-                    curve_start = 1250 - adjust+120,
-                    curve_stop = 1550 + adjust+120,
-                    init_guess = [100, Co_gamma_1, 20],   # Amplitude, mean, variance Guess for normal distribution 
+                        curve_start = max - width,
+                        curve_stop = max + width,
+                        init_guess = [1000, Co_gamma_1, width],   # Amplitude, mean, variance Guess for normal distribution
                         plot_fit = True,
-                        show_plot = False, # are plotting more peaks
+                        show_plot = False, # plotting more peaks
                         model = "normal"
                     ) 
                     data2 = ManageData(f"HPGe_{source}.Spe",calibration_coeffs=calibration_coeffs)
                     data2.calibrate_data(calibration=calibration_switch, background=background.signal, scale=False)
                     data2.plot_data(show_plot=False, label=rf"{source} data")
-                    adjust = -50
+                    width =10
+                    max = int((Co_gamma_2-calibration_coeffs[0])/calibration_coeffs[1]) # bin number of peak, found from energy level
                     data2.get_fit(
-                    curve_start = 1410 - adjust+150,
-                    curve_stop = 1700 + adjust+150,
-                    init_guess = [1000, Co_gamma_2, 20],   # Amplitude, mean, variance, . Guess for normal distribution.
+                        curve_start = max - width,
+                        curve_stop = max + width,
+                        init_guess = [1000, Co_gamma_2, width],   # Amplitude, mean, variance Guess for normal distribution
                         plot_fit = True,
-                        show_plot = True,
+                        show_plot = True, # show after peak plotted
                         model = "normal"
-                    )
+                    ) 
                 else:
                     data.plot_data(show_plot=True, label=rf"{source} data")
             elif source == "137Cs_8micros":
                 if fit_switch:
                     data.plot_data(show_plot=False, label=r"$^{137}$Cs data")
-                    adjust = -50
+                    max = int((Cs_gamma-calibration_coeffs[0])/calibration_coeffs[1]) # bin number of peak, found from energy level
+                    width =10
                     data.get_fit(
-                    curve_start = 450 - adjust+300,
-                    curve_stop = 630 + adjust+380,
-                    init_guess = [10000, Cs_gamma, 20],   # Amplitude, mean, variance Guess for normal distribution 
+                    curve_start = max-width,
+                    curve_stop = max+width,
+                    init_guess = [30000, Cs_gamma, width],   # Amplitude, mean, variance Guess for normal distribution 
                     plot_fit = True,
                     show_plot = True,
                     model = "normal"
