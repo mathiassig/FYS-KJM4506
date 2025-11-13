@@ -5,15 +5,15 @@ from scipy.optimize import curve_fit
 import scipy.special as sci
 
 class ManageData:
-    def __init__(self, filename, create_fig=True):
+    def __init__(self, filename, create_fig=True, calibration_coeffs = None):
         self.filename = filename
+        self.calibration = calibration_coeffs # found manually, passed as argument
         self._read_spe()
         self.get_fit_called = False
         self.calibrate_background = False
         self.calibrate_calibration = False
         self.calibrate_scale = False
         self.model = None
-
         if create_fig: self.fig, self.ax = plt.subplots(figsize=(10, 8))
     
     def _read_spe(self):
@@ -32,8 +32,9 @@ class ManageData:
             skip_header=11, max_rows=1, dtype=int)
         self.signal = np.genfromtxt(self.filename, skip_header=12,
             max_rows=self.last_channel+1, dtype=float)
-        self.calibration = np.genfromtxt(self.filename,
-            skip_header=11+self.last_channel+10+2+1, max_rows=1, dtype=float, # had to move down one extra row to find the calibration in the new .Spe files
+        if self.calibration is None: # if no calibration coeffs are passed, read them from .Spe files
+            self.calibration = np.genfromtxt(self.filename,
+                skip_header=11+self.last_channel+10+2, max_rows=1, dtype=float, 
             usecols=[0,1,2])
         self.channels = np.arange(self.first_channel, self.last_channel+1, 1, dtype=float)        
 
@@ -149,7 +150,7 @@ class ManageData:
                 """
                 Model function is the normal distribution.
                 """
-                if len(init_guess) != (3+2):
+                if len(init_guess) != (3):
                     print("Please supply initial guess for amplitude, expectation value and variance.")
                     return
                 
@@ -184,20 +185,23 @@ class ManageData:
                 msg = "Please choose model = 'normal' or 'chisquare' or 'weibull' or 'gamma'."
                 raise ValueError(msg)
                 
-            self.chisq, self.p = chisquare(f_obs=signal_slice, f_exp=signal_slice_model)
+            #self.chisq, self.p = chisquare(f_obs=signal_slice, f_exp=signal_slice_model) denne lager bare kødd
 
         if plot_fit:
             if init_guess is None:
                 msg = "No initial guess is given!"
                 raise ValueError(msg)
             
+            # har redigert denne
             if self.model == "normal":
-                A_err, mu_err, sigma_err, slope_err, intercept_err = np.sqrt(np.diag(self.pcov))
-                label = f'fit:\n' + f'$\mu = {self.popt[1]:.1f} \pm {mu_err:.1f}$,\n'
-                label += f'$\sigma = {self.popt[2]:.1f} \pm {sigma_err:.1f}$\n'
-                label += f'intercept = {self.popt[4]:.1f} $\pm$ {intercept_err:.1f}\n'
-                label += f'slope = {self.popt[3]:.1f} $\pm$ {slope_err:.1f}\n'
-                label += f'$\chi^2 = {self.chisq:.1f} / {curve_stop - curve_start}$\n'
+                A_err, mu_err, sigma_err= np.sqrt(np.diag(self.pcov)) # , slope_err, intercept_err 
+                tekst = f'fit:\n' + f'$\mu = {self.popt[1]:.1f} \pm {mu_err:.1f}$,\n'
+                tekst += f'$\sigma = {self.popt[2]:.1f} \pm {sigma_err:.1f}$\n'
+                tekst+= f'$A = {self.popt[0]} \pm {A_err:.1f}$\n'
+                print(tekst)
+                # label += f'intercept = {self.popt[4]:.1f} $\pm$ {intercept_err:.1f}\n'
+                # label += f'slope = {self.popt[3]:.1f} $\pm$ {slope_err:.1f}\n'
+                # label += f'$\chi^2 = {self.chisq:.1f} / {curve_stop - curve_start}$\n'
             
             elif (self.model == "chisquare") or (self.model == "chi2"):
                 label = f'$fit: dof = {self.popt[1]:.1f}$'
@@ -226,13 +230,16 @@ class ManageData:
             
 
             # self.ax.plot(channel_slice, signal_slice, label='data')
-            self.ax.plot(channel_slice, signal_slice_model, label=label)
+            self.ax.plot(channel_slice, signal_slice_model)
             self._title_label_legend()
             if show_plot: plt.show()
 
     def _title_label_legend(self):
         self.ax.set_title(f"subtracted background: {self.calibrate_background}, channel calibration: {self.calibrate_calibration}, scaled data: {self.calibrate_scale}")
-        self.ax.set_xlabel("Energy [KeV]", fontsize=15)
+        if self.calibrate_calibration: # if spectrum is calibrated
+            self.ax.set_xlabel("Energy [KeV]", fontsize=15)
+        else: # if not calibrated, return channel number
+            self.ax.set_xlabel("Channel", fontsize=15)
         self.ax.set_ylabel("# events", fontsize=15)
         self.ax.tick_params(labelsize=15)
         self.ax.legend(fontsize=12)
@@ -271,7 +278,7 @@ class ManageData:
 def chi_wrapper(x, A, df):
     return A*chi2.pdf(df=df, x=x)
 
-def gauss_wrapper(x, A, mu, sigma, slope, intercept):
+def gauss_wrapper(x, A, mu, sigma):
     """
     A wrapper function for the probability distribution function for the
     normal distribution.  Use to pass as argument to curve_fit.
@@ -300,7 +307,7 @@ def gauss_wrapper(x, A, mu, sigma, slope, intercept):
     -------
     Wrapped function.
     """
-    return A*norm.pdf(x, mu, sigma) + slope*x + intercept
+    return A*norm.pdf(x, mu, sigma)
 
 def weibull_wrapper(x, A, lambd, k, loc, scale, slope, intercept):
     rv = exponweib(lambd, k, loc, scale)
@@ -310,9 +317,15 @@ def gamma_wrapper(x, A, k, loc, scale, slope, intercept):
     return A*gamma.pdf(x, k, loc, scale) + slope*x + intercept
 
 if __name__ == "__main__":
+    # switches
     distance_plot = False
-    sources_plot = False
-    calibration_plot = True
+    sources_plot = True
+    shapingtime_plot = False
+    calibration_plot_germanium = False
+    calibration_switch = False
+    fit_switch = False # whether to fit peaks with gaussian or not
+    #calibration_coeffs = [-445.42857142857133,4.365079365079365,0] # last one is dummy, order is reversed because of how class uses them
+    calibration_coeffs = None # the ones found using Barium where absolutely terrible, useless
 
     Ba_gamma_1 = 81.0 # keV
     Ba_gamma_2 = 356 # keV
@@ -321,139 +334,125 @@ if __name__ == "__main__":
     Co_gamma_2 = 1332.5   # keV.
     # model = "gamma"
 
-    # Take the average of three background measurements
-    avg_background = ManageData("background1.Spe",create_fig=False).signal
-    for i in range(2,4):
-        background = ManageData(f"background{i}.Spe", create_fig=False)
-        avg_background+=background.signal
-    avg_background = avg_background/3
+    # find background for germanium
+    background = ManageData("HPGe_background.Spe",create_fig=False)
 
-    if calibration_plot:
+    if calibration_plot_germanium:
         #calibration = ManageData("calibration.Spe") # use this to find calibration parameters
-        calibration = ManageData("133Ba_5cm.Spe") # use this to find calibration parameters
+        calibration = ManageData("HPGe_calibration.Spe") # use this to find calibration parameters
         calibration.calibrate_data(calibration=False, background=background.signal, scale=False)
-        calibration.plot_data(show_plot=False, label=r"$^Calibration data")
-        adjust = -50
-        calibration.get_fit(
-            curve_start = 40 - adjust+10,
-            curve_stop = 180 + adjust+10,
-            init_guess = [10000, Ba_gamma_1, 20, -1e-3, 0],   # Amplitude, mean, variance, slope, intercept. Guess for normal distribution with slope.
-            plot_fit = True,
-            show_plot = True,
-            model = "normal"
-        ) 
-        calibration2 = ManageData("133Ba_5cm.Spe") # use this to find calibration parameters
-        calibration2.calibrate_data(calibration=False, background=background.signal, scale=False)
-        calibration2.plot_data(show_plot=False, label=r"$^Calibration data")
-        calibration2.get_fit(
-            curve_start = 470 - adjust-100,
-            curve_stop = 670 + adjust-100,
-            init_guess = [10000, Ba_gamma_2, 20, -1e-3, 0],   # Amplitude, mean, variance, slope, intercept. Guess for normal distribution with slope.
-            plot_fit = True,
-            show_plot = True,
-            model = "normal"
-        ) 
-        # adjust = -50
+        calibration.plot_data(show_plot=True, label=r"$^Calibration data")
+        # width =16
+        # max = 134-10 # bin number of peak, since this is pre-calibrated spectrum
         # calibration.get_fit(
-        #     curve_start = 450 - adjust,
-        #     curve_stop = 650 + adjust,
-        #     init_guess = [10000, Cs_gamma, 20, -1e-3, 0],   # Amplitude, mean, variance, slope, intercept. Guess for normal distribution with slope.
+        #     curve_start = max-width,
+        #     curve_stop = max+width,
+        #     init_guess = [6000, max, width],   # Amplitude, mean, variance. Guess for normal distribution 
+        #     plot_fit = True,
+        #     show_plot = False, # are plotting more peaks
+        #     model = "normal"
+        # ) 
+        # calibration2 = ManageData("133Ba_5cm.Spe") # use this to find calibration parameters
+        # calibration2.calibrate_data(calibration=False, background=background.signal, scale=False)
+        # calibration2.plot_data(show_plot=False, label=r"$^Calibration data")
+        # width = 40
+        # max = 493-10 # bin number of peak, since this is pre-calibrated spectrum
+        # calibration2.get_fit(
+        #     curve_start = max-width,
+        #     curve_stop = max+width,
+        #     init_guess = [2000, max, width],  # Amplitude, mean, variance, slope, intercept. Guess for normal distribution with slope.
         #     plot_fit = True,
         #     show_plot = True,
         #     model = "normal"
-        # )
+        # ) 
+
     # Plot 137Cs, normal fit of the peaks, for distances 5-20 cm
     if distance_plot:
         distances = ["5cm","10cm","15cm","20cm"]
         for distance in distances:
-            Cs137 = ManageData(f"137Cs_{distance}.Spe")
-            Cs137.calibrate_data(calibration=True, background=avg_background, scale=False)
+            Cs137 = ManageData(f"137Cs_{distance}.Spe",calibration_coeffs=calibration_coeffs)
+            Cs137.calibrate_data(calibration=True, background=background.signal, scale=False)
             Cs137.plot_data(show_plot=False, label=r"$^{137}$Cs data")
             adjust = -50
             Cs137.get_fit(
                 curve_start = 450 - adjust+300,
                 curve_stop = 630 + adjust+380,
-                init_guess = [10000, Cs_gamma, 20, -1e-3, 0],   # Amplitude, mean, variance, slope, intercept. Guess for normal distribution with slope.
+                init_guess = [10000, Cs_gamma, 20],   # Amplitude, mean, variance Guess for normal distribution 
                 plot_fit = True,
                 show_plot = True,
                 model = "normal"
             )
     if sources_plot:
-        sources = ["133Ba","60Co"]
+        sources = ["133Ba","137Cs_8micros","60Co"]
         for source in sources:
-            data = ManageData(f"{source}_5cm.Spe")
-            data.calibrate_data(calibration=True, background=avg_background, scale=False)
+            data = ManageData(f"HPGe_{source}.Spe",calibration_coeffs=calibration_coeffs)
+            data.calibrate_data(calibration=calibration_switch, background=background.signal, scale=False)
             if source=="133Ba":
-                data.plot_data(show_plot=False, label=rf"{source} data")
-                adjust = -50
-                data.get_fit(
-                    curve_start = 50 - adjust,
-                    curve_stop = 200 + adjust,
-                    init_guess = [10000, Ba_gamma_1, 20, -1e-3, 0],   # Amplitude, mean, variance, slope, intercept. Guess for normal distribution with slope.
-                    plot_fit = True,
-                    show_plot = True,
-                    model = "normal"
-                ) 
-                data2 = ManageData(f"{source}_5cm.Spe")
-                data2.calibrate_data(calibration=True, background=avg_background, scale=False)
-                data2.plot_data(show_plot=False, label=rf"{source} data")
-                adjust = -50
-                data2.get_fit(
-                    curve_start = 370 - adjust,
-                    curve_stop = 600 + adjust,
-                    init_guess = [10000, Ba_gamma_2, 20, -1e-3, 0],   # Amplitude, mean, variance, slope, intercept. Guess for normal distribution with slope.
-                    plot_fit = True,
-                    show_plot = True,
-                    model = "normal"
-                ) 
+                if fit_switch:
+                    data.plot_data(show_plot=False, label=rf"{source} data")
+                    adjust = -50
+                    data.get_fit(
+                        curve_start = 50 - adjust,
+                        curve_stop = 200 + adjust,
+                        init_guess = [10000, Ba_gamma_1, 20],   # Amplitude, mean, variance Guess for normal distribution
+                        plot_fit = True,
+                        show_plot = False, # plotting more peaks
+                        model = "normal"
+                    ) 
+                    data2 = ManageData(f"HPGe_{source}.Spe",calibration_coeffs=calibration_coeffs)
+                    data2.calibrate_data(calibration=calibration_switch, background=background.signal, scale=False)
+                    data2.plot_data(show_plot=False, label=rf"{source} data")
+                    adjust = -50
+                    data2.get_fit(
+                        curve_start = 370 - adjust,
+                        curve_stop = 600 + adjust,
+                        init_guess = [10000, Ba_gamma_2, 20],   # Amplitude, mean, variance. Guess for normal distribution 
+                        plot_fit = True,
+                        show_plot = True,
+                        model = "normal"
+                    )
+                else:
+                    data.plot_data(show_plot=True, label=rf"{source} data")
             elif source=="60Co":
-                data.plot_data(show_plot=False, label=rf"{source} data")
-                adjust = -50
-                data.get_fit(
-                curve_start = 1250 - adjust+120,
-                curve_stop = 1550 + adjust+120,
-                init_guess = [100, Co_gamma_1, 20, -1e-3, 0],   # Amplitude, mean, variance, slope, intercept. Guess for normal distribution with slope.,   # Amplitude, mean, variance, slope, intercept. Guess for normal distribution with slope.
+                if fit_switch:
+                    data.plot_data(show_plot=False, label=rf"{source} data")
+                    adjust = -50
+                    data.get_fit(
+                    curve_start = 1250 - adjust+120,
+                    curve_stop = 1550 + adjust+120,
+                    init_guess = [100, Co_gamma_1, 20],   # Amplitude, mean, variance Guess for normal distribution 
+                        plot_fit = True,
+                        show_plot = False, # are plotting more peaks
+                        model = "normal"
+                    ) 
+                    data2 = ManageData(f"HPGe_{source}.Spe",calibration_coeffs=calibration_coeffs)
+                    data2.calibrate_data(calibration=calibration_switch, background=background.signal, scale=False)
+                    data2.plot_data(show_plot=False, label=rf"{source} data")
+                    adjust = -50
+                    data2.get_fit(
+                    curve_start = 1410 - adjust+150,
+                    curve_stop = 1700 + adjust+150,
+                    init_guess = [1000, Co_gamma_2, 20],   # Amplitude, mean, variance, . Guess for normal distribution.
+                        plot_fit = True,
+                        show_plot = True,
+                        model = "normal"
+                    )
+                else:
+                    data.plot_data(show_plot=True, label=rf"{source} data")
+            elif source == "137Cs_8micros":
+                if fit_switch:
+                    data.plot_data(show_plot=False, label=r"$^{137}$Cs data")
+                    adjust = -50
+                    data.get_fit(
+                    curve_start = 450 - adjust+300,
+                    curve_stop = 630 + adjust+380,
+                    init_guess = [10000, Cs_gamma, 20],   # Amplitude, mean, variance Guess for normal distribution 
                     plot_fit = True,
                     show_plot = True,
                     model = "normal"
-                ) 
-                data2 = ManageData(f"{source}_5cm.Spe")
-                data2.calibrate_data(calibration=True, background=avg_background, scale=False)
-                data2.plot_data(show_plot=False, label=rf"{source} data")
-                adjust = -50
-                data2.get_fit(
-                curve_start = 1410 - adjust+150,
-                curve_stop = 1700 + adjust+150,
-                init_guess = [1000, Co_gamma_2, 20, -1e-3, 0],   # Amplitude, mean, variance, slope, intercept. Guess for normal distribution with slope.
-                    plot_fit = True,
-                    show_plot = True,
-                    model = "normal"
-                ) 
-    # Plot 60Co, normal
-    # Co60 = ManageData("60Co.Spe")
-    # Co60.calibrate_data(calibration=True, background=background.signal, scale=False)
-    # Co60.plot_data(show_plot=False, label=r"$^{60}$Co data")
-    
-    # adjust = -50
-    # Co60.get_fit(
-    #     curve_start = 1000 - adjust+190,
-    #     curve_stop = 1200 + adjust+220,
-    #     init_guess = [10000, Co_gamma_1, 20, -1e-3, 0],   # Amplitude, mean, variance, slope, intercept. Guess for normal distribution with slope.
-    #     plot_fit = True,
-    #     show_plot = True,
-    #     model = "normal"
-    # )
-    # Co60_2 = ManageData("60Co.Spe")
-    # Co60_2.calibrate_data(calibration=True, background=background.signal, scale=False)
-    # Co60_2.plot_data(show_plot=False, label=r"$^{60}$Co data")
-    # Co60_2.get_fit(
-    #     curve_start = 1150 - adjust+200,
-    #     curve_stop = 1400 + adjust+200,
-    #     init_guess = [10000, Co_gamma_2, 20, -1e-3, 0],   # Amplitude, mean, variance, slope, intercept. Guess for normal distribution with slope.
-    #     plot_fit = True,
-    #     show_plot = True,
-    #     model = "normal"
-    # )
+                    )
+                else:
+                    data.plot_data(show_plot=True, label=r"$^{137}$Cs data")
     # # Plot other peaks in the 137Cs file, normal
     # Cs137_spike = ManageData("137Cs.Spe")
     # Cs137_spike.calibrate_data(calibration=True, background=background.signal, scale=False)

@@ -1,16 +1,34 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+# area under gaussian
+def events(amp):
+    return amp # turns out we are using a function that is already normalized
+
+def events_err(amp_err):
+    return amp_err # turns out we are using a function that is already normalized
+
 def solid_angle(a,d):
     return 2*np.pi*(1-d/np.sqrt(d**2+a**2))
 
+def solid_angle_err(a,d,d_err):
+    return a**2/((d**2+a**2)**1.5)*d_err
+
 def epsilon_tot(N,A,t,I):
     return N/(A*t*I)
+
+def epsilon_tot_err(epsilon_tot,amp,amp_err,sigma,sigma_err):
+    N_err = events_err(amp_err)
+    N = events(amp)
+    return epsilon_tot*N_err/N
 
 def epsilon_int(N,A,t,I,d,a):
     Omega = solid_angle(a,d)
     Total = epsilon_tot(N,A,t,I)
     return Total*4*np.pi/Omega
+
+def epsilon_int_err(epsilon_int,epsilon_tot,epsilon_tot_err,Omega,Omega_err):
+    return epsilon_int*np.sqrt((epsilon_tot_err/epsilon_tot)**2+(Omega_err/Omega)**2)
 
 def activity(A0,t,T2):
     lam = np.log(2)/T2
@@ -29,35 +47,32 @@ for i in range(len(A0s)):
 # Skrive til fil
 np.savetxt('activity.txt', tekst, fmt='%s')
 
-# use approximation where FWHM = 2.355 sigma
-# end-start = 2.355 sigma
-def events(const_gauss,slope,intercept,FWHM): # calculate events under peak
-    # area under FWHM approximately 76% of total area of Gaussian
-    return const_gauss*0.76*FWHM + slope/2*(FWHM**2)+FWHM*intercept
-
 
 
 
 ####### Distances, 137Cs #####################
 distances = [5,10,15,20] # in cm
-slopes = [1.8,0.7,0.4,0.3]
-mus = [671,675,677,677]
-intercepts = [-1067,-379,-228,-179]
-peak_heights = [2600,1100,550,330]
-consts_gauss = []
-for i in range(len(distances)):
-    consts_gauss.append(peak_heights[i]-intercepts[i]-slopes[i]*mus[i])
-FWHMs = [57.14,53.88,50.16,46.81] # in keV
+distance_errs = [0.1,0.1,0.1,0.1] # 5 mm error because of resolution of ruler
+mus = [672.6, 676.1, 678.2 , 678.8]
+mu_errs = [0.2, 0.2, 0.2, 0.3]
+sigmas = [28.3, 28.8 , 29.5, 29.4]
+sigma_errs = [0.2, 0.2, 0.2, 0.3]
+amps = [179382.63366313477, 79098.82120488651, 39831.3194202709, 24731.52684843751  ]
+amp_errs = [923.8, 471.1, 257.5, 192.9]
 ts_dist = [289,295,297,298] # in seconds
 tekst = [] # re-initilize tekst
 tot_eff_dist = []
+tot_eff_dist_errs = []
 for i in range(len(distances)):
     A = activity(A0s[0],dts[0],T2s[0])*3.7*10**4 # calculate acitvity for 137Cs # convert from microCurie to disintegrations/sec
-    N = events(consts_gauss[i],slopes[i],intercepts[i],FWHMs[i])
+    N = events(amps[i])
     tot_eff = epsilon_tot(N,A,ts_dist[i],0.8501)
     tot_eff_dist.append(tot_eff)
-    Omega = solid_angle(2.9,distances[i])
-    tekst.append(f"{Sources[0]} & {tot_eff} & {distances[i]} & {Omega}\\\\")
+    tot_eff_dist_err = epsilon_tot_err(tot_eff,amps[i],amp_errs[i],sigmas[i],sigma_errs[i])
+    tot_eff_dist_errs.append(tot_eff_dist_err)
+    Omega = solid_angle(2.54,distances[i])
+    Omega_err = solid_angle_err(2.54,distances[i],distance_errs[i])
+    tekst.append(f"{Sources[0]} &$ {tot_eff:2f} \pm {tot_eff_dist_err:2f}$ &$ {distances[i]:1f} \pm {distance_errs[i]} $& ${Omega:2f} \pm {Omega_err:2f} $ \\\\")
 
 np.savetxt('tot_eff.txt', tekst, fmt='%s')
 
@@ -67,13 +82,18 @@ def my_function(x, a,b,c):
     """Solid angle function"""
     return a *x/np.sqrt(x**2+b)+c
 def my_function2(x,a):
+    "simple parabola"
     return a/(x**2)
+def my_function3(x,a,b):
+    "line"
+    return a*x+b
 xdata = np.arange(5,21,0.5)
-popt, pcov = curve_fit(my_function, np.array(distances),np.array(tot_eff_dist))
-plt.plot(xdata, my_function(xdata, *popt), color='red', label='Fitted Curve')
-plt.plot(distances,tot_eff_dist,'bo',label="137Cs 662keV peak")
-plt.title("Total peak efficiency as a function of \n distance between detector and source")
-plt.xlabel('cm')
+popt, pcov = curve_fit(my_function2, np.array(distances),np.array(tot_eff_dist))
+plt.plot(xdata, my_function2(xdata, *popt), color='red', label='Fitted Curve')
+plt.errorbar(distances, tot_eff_dist, yerr=tot_eff_dist_errs,label= "137Cs 662keV peak", fmt='o',color='blue')
+plt.title("Total peak efficiency as a function of \n distance between detector and source",fontsize=16)
+plt.xlabel('cm',fontsize=14)
+plt.ylabel("detector efficiency",fontsize=14)
 plt.legend()
 plt.savefig("figures/tot_peak_eff_dist.png")
 plt.close()
@@ -82,30 +102,40 @@ plt.close()
 ##### Energy peaks, all sources #################
 Es = [81.0,356.0,662.0,1173.2,1332.5]
 tot_eff_all = []
+tot_eff_all_errs = []
 Is = [0.3331,0.6205,0.8501,0.9988,0.9998]
-sigmas = [6.2,16.2,57.14/2.355,30.1,34.0] # in keV # 
 ts_all = [293,293,289,298,298] # in seconds
-slopes = [-11.1,-2.6,1.8,0.0,0.0]
-mus = [63.0,360.4,671.2,1203.5,1365.1]
-intercepts = [1111.8,1289.7,-1066.8,11.7,28.5]
-peak_heights = [4500,1800,2600,25,20]
-consts_gauss = []
-for i in range(len(Es)):
-    consts_gauss.append(peak_heights[i]-intercepts[i]-slopes[i]*mus[i])
+mus = [62.7, 358.0, 672.6, 1202.7, 1360.3]
+mu_errs = [0.1, 0.5, 0.2, 1.5, 1.7]
+sigmas = [7.1, 24.6, 28.3, 46.5, 48.7]
+sigma_errs = [0.1, 0.5, 0.2, 1.7, 2.1]
+amps = [76735.79211938973, 84512.9773697688, 79098.82120488651, 2517.7377997181443, 2181.6313046715945]
+amp_errs = [816.6, 1413.7, 471.1, 73.7, 73.0]
+
 source_indices = [1,1,0,2,2]
 conversion_factors = [10**3,10**3,3.7*10**4,10**3,10**3]
 tekst = [] # re-initialize tekst
 for i in range(len(Es)):
     A = activity(A0s[source_indices[i]],dts[source_indices[i]],T2s[source_indices[i]])*conversion_factors[i]# calculate acitvity for sources, convert to disintegrations/sec
-    N = events(consts_gauss[i],slopes[i],intercepts[i],sigmas[i]*2.355)
+    N = events(amps[i])
     tot_eff = epsilon_tot(N,A,ts_all[i],Is[i])
     tot_eff_all.append(tot_eff)
+    tot_eff_err = epsilon_tot_err(tot_eff,amps[i],amp_errs[i],sigmas[i],sigma_errs[i])
+    tot_eff_all_errs.append(tot_eff_err)
     int_eff = epsilon_int(N,A,ts_all[i],Is[i],distances[0],2.9)
-    tekst.append(f"{Sources[source_indices[i]]} & {Es[i]} & {int_eff}\\\\")
+    Omega = solid_angle(2.54,5)
+    Omega_err = solid_angle_err(2.54,5,0.1)
+    int_eff_err = epsilon_int_err(int_eff,tot_eff,tot_eff_err,Omega,Omega_err)
+    tekst.append(f"{Sources[source_indices[i]]} & {Es[i]} & ${int_eff:2f}  \pm  {int_eff_err:2f}$\\\\")
 np.savetxt('int_eff.txt', tekst, fmt='%s')
 
-plt.loglog(Es,tot_eff_all,"bo")
-plt.title("Total peak efficiency as a function of energy")
-plt.xlabel("keV")
+xdata = np.arange(0,1400,100)
+popt, pcov = curve_fit(my_function3, np.array(Es),np.array(tot_eff_all))
+plt.plot(xdata, my_function3(xdata, *popt), color='red', label='Fitted line')
+plt.errorbar(Es, tot_eff_all, yerr=tot_eff_all_errs, fmt='o', color='blue', label='energy peaks')
+plt.title("Total peak efficiency as a function of energy",fontsize=16)
+plt.xlabel("keV",fontsize=14)
+plt.ylabel("detector efficiency",fontsize=14)
+plt.legend()
 plt.savefig("figures/tot_peak_eff_all.png")
 plt.close()
