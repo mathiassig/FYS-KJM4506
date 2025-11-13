@@ -322,10 +322,9 @@ if __name__ == "__main__":
     sources_plot = True
     shapingtime_plot = False
     calibration_plot_germanium = False
-    calibration_switch = False
+    calibration_switch = True
     fit_switch = False # whether to fit peaks with gaussian or not
-    #calibration_coeffs = [-445.42857142857133,4.365079365079365,0] # last one is dummy, order is reversed because of how class uses them
-    calibration_coeffs = None # the ones found using Barium where absolutely terrible, useless
+    calibration_coeffs = [0.26479855845655886,0.19007627854983625,0] # last one is dummy, order is reversed because of how class uses them
 
     Ba_gamma_1 = 81.0 # keV
     Ba_gamma_2 = 356 # keV
@@ -340,31 +339,48 @@ if __name__ == "__main__":
     if calibration_plot_germanium:
         #calibration = ManageData("calibration.Spe") # use this to find calibration parameters
         calibration = ManageData("HPGe_calibration.Spe") # use this to find calibration parameters
+        # this calibration spectrum used 137Cs and 60Co
         calibration.calibrate_data(calibration=False, background=background.signal, scale=False)
-        calibration.plot_data(show_plot=True, label=r"$^Calibration data")
-        # width =16
-        # max = 134-10 # bin number of peak, since this is pre-calibrated spectrum
-        # calibration.get_fit(
-        #     curve_start = max-width,
-        #     curve_stop = max+width,
-        #     init_guess = [6000, max, width],   # Amplitude, mean, variance. Guess for normal distribution 
-        #     plot_fit = True,
-        #     show_plot = False, # are plotting more peaks
-        #     model = "normal"
-        # ) 
-        # calibration2 = ManageData("133Ba_5cm.Spe") # use this to find calibration parameters
-        # calibration2.calibrate_data(calibration=False, background=background.signal, scale=False)
-        # calibration2.plot_data(show_plot=False, label=r"$^Calibration data")
-        # width = 40
-        # max = 493-10 # bin number of peak, since this is pre-calibrated spectrum
-        # calibration2.get_fit(
-        #     curve_start = max-width,
-        #     curve_stop = max+width,
-        #     init_guess = [2000, max, width],  # Amplitude, mean, variance, slope, intercept. Guess for normal distribution with slope.
-        #     plot_fit = True,
-        #     show_plot = True,
-        #     model = "normal"
-        # ) 
+        if fit_switch:
+            calibration.plot_data(show_plot=False, label=r"$^Calibration data")
+            width =20
+            max = 3495 # bin number of peak, since this is pre-calibrated spectrum # 662 keV
+            calibration.get_fit(
+                curve_start = max-width,
+                curve_stop = max+width,
+                init_guess = [20000, max, width],   # Amplitude, mean, variance. Guess for normal distribution 
+                plot_fit = True,
+                show_plot = False, # are plotting more peaks
+                model = "normal"
+            ) 
+            calibration2 = ManageData("HPGe_calibration.Spe") # use this to find calibration parameters
+            calibration2.calibrate_data(calibration=False, background=background.signal, scale=False)
+            calibration2.plot_data(show_plot=False, label=r"$^Calibration data")
+            width = 20
+            max = 6186 # bin number of peak, since this is pre-calibrated spectrum # 1173 keV
+            calibration2.get_fit(
+                curve_start = max-width,
+                curve_stop = max+width,
+                init_guess = [1000, max, width],  # Amplitude, mean, variance, slope, intercept. Guess for normal distribution with slope.
+                plot_fit = True,
+                show_plot = False,
+                model = "normal"
+            )
+            calibration3 = ManageData("HPGe_calibration.Spe") # use this to find calibration parameters
+            calibration3.calibrate_data(calibration=False, background=background.signal, scale=False)
+            calibration3.plot_data(show_plot=False, label=r"$^Calibration data")
+            width = 20
+            max = 7024 # bin number of peak, since this is pre-calibrated spectrum # 1332 keV
+            calibration3.get_fit(
+                curve_start = max-width,
+                curve_stop = max+width,
+                init_guess = [1000, max, width],  # Amplitude, mean, variance, slope, intercept. Guess for normal distribution with slope.
+                plot_fit = True,
+                show_plot = True,
+                model = "normal"
+            )
+        else:
+            calibration.plot_data(show_plot=True, label=r"$^Calibration data")
 
     # Plot 137Cs, normal fit of the peaks, for distances 5-20 cm
     if distance_plot:
