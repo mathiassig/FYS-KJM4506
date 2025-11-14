@@ -318,12 +318,11 @@ def gamma_wrapper(x, A, k, loc, scale, slope, intercept):
 
 if __name__ == "__main__":
     # switches
-    distance_plot = False
-    sources_plot = True
-    shapingtime_plot = False
+    sources_plot = False
+    shapingtime_plot = True
     calibration_plot_germanium = False
     calibration_switch = True
-    fit_switch = True # whether to fit peaks with gaussian or not
+    fit_switch = False # whether to fit peaks with gaussian or not
     calibration_coeffs = [-0.26479855845655886,0.19007627854983625,0] # last one is dummy, order is reversed because of how class uses them
 
     Ba_gamma_1 = 81.0 # keV
@@ -382,22 +381,41 @@ if __name__ == "__main__":
         else:
             calibration.plot_data(show_plot=True, label=r"$^Calibration data")
 
-    # Plot 137Cs, normal fit of the peaks, for distances 5-20 cm
-    if distance_plot:
-        distances = ["5cm","10cm","15cm","20cm"]
-        for distance in distances:
-            Cs137 = ManageData(f"137Cs_{distance}.Spe",calibration_coeffs=calibration_coeffs)
-            Cs137.calibrate_data(calibration=True, background=background.signal, scale=False)
-            Cs137.plot_data(show_plot=False, label=r"$^{137}$Cs data")
-            adjust = -50
-            Cs137.get_fit(
-                curve_start = 450 - adjust+300,
-                curve_stop = 630 + adjust+380,
-                init_guess = [10000, Cs_gamma, 20],   # Amplitude, mean, variance Guess for normal distribution 
-                plot_fit = True,
-                show_plot = True,
-                model = "normal"
-            )
+    # Plot 137Cs for three different shaping times and find resolution
+    if shapingtime_plot:
+        shapingtimes = ["6micros","8micros","10micros"]
+        iter = 0
+        if not fit_switch:
+            fig, ax = plt.subplots()
+        for shapingtime in shapingtimes:
+            iter+=1
+            Cs137 = ManageData(f"HPGe_137Cs_{shapingtime}.Spe",calibration_coeffs=calibration_coeffs)
+            Cs137.calibrate_data(calibration=calibration_switch, background=background.signal, scale=False)
+            if fit_switch:
+                Cs137.plot_data(show_plot=False, label=f"137Cs {shapingtime} data")
+                max = int((Cs_gamma-calibration_coeffs[0])/calibration_coeffs[1]) # bin number of peak, found from energy level
+                width =10
+                Cs137.get_fit(
+                    curve_start = max-width,
+                    curve_stop = max+width,
+                    init_guess = [30000, Cs_gamma, width],   # Amplitude, mean, variance Guess for normal distribution 
+                    plot_fit = True,
+                    show_plot = True,
+                    model = "normal"
+                    )
+            else:
+                ax.plot(Cs137.channels[Cs137.first_channel+2500:Cs137.last_channel-4000], Cs137.signal[Cs137.first_channel+2500:Cs137.last_channel-4000], label=f"137Cs {shapingtime} data")
+                if iter==3:
+                    ax.set_title(f"Events per energy for different shaping times",fontsize=16)
+                    #if Cs137.calibrate_calibration: # if spectrum is calibrated
+                    #    plt.xlabel("Energy [KeV]", fontsize=15)
+                    #else: # if not calibrated, return channel number
+                    #    plt.xlabel("Channel", fontsize=15)
+                    ax.set_xlabel("Energy [KeV]", fontsize=15)
+                    ax.set_ylabel("# events", fontsize=15)
+                    ax.tick_params(labelsize=15)
+                    ax.legend()
+                    plt.show()
     if sources_plot:
         sources = ["133Ba","137Cs_8micros","60Co"]
         for source in sources:
