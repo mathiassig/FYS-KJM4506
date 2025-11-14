@@ -320,13 +320,15 @@ if __name__ == "__main__":
     # switches
     sources_plot = False
     shapingtime_plot = False
+    eu_plot =False
     Co60_LOG = False
+    unknown_plot = True
     calibration_plot_germanium = False
     calibration_plot_NaI = False
     calibration_switch = True
-    fit_switch = True # whether to fit peaks with gaussian or not
+    fit_switch = False # whether to fit peaks with gaussian or not
     calibration_coeffs = [-0.26479855845655886,0.19007627854983625,0] # last one is dummy, order is reversed because of how class uses them
-    calibration_coeffs_NaI = [40.44941239690077,3.2147663084228943]
+    calibration_coeffs_NaI = [40.44941239690077,3.2147663084228943,0]
 
     ## Full energy peaks ##
     Ba_gamma_1 = 81.0 # keV
@@ -567,7 +569,7 @@ if __name__ == "__main__":
                     )
                 else:
                     data.plot_data(show_plot=True, label=r"$^{137}$Cs data")
-
+#######################################
     if Co60_LOG:
         data = ManageData(f"HPGe_60Co.Spe",calibration_coeffs=calibration_coeffs)
         data.calibrate_data(calibration=calibration_switch, background=background.signal, scale=False)
@@ -580,6 +582,31 @@ if __name__ == "__main__":
         plt.legend()
         plt.title("60Co gamma spectrum",fontsize=16)
         plt.show()
+    ####################
+    if eu_plot:
+        NaI = ManageData("NaI(Tl)_152Eu.Spe",calibration_coeffs=calibration_coeffs_NaI)
+        HPGe = ManageData("HPGe_152Eu.Spe",calibration_coeffs=calibration_coeffs)
+        NaI.calibrate_data(calibration=True,background=background_NaI.signal,scale=False)
+        HPGe.calibrate_data(calibration=True,background=background.signal,scale=False)        
+        plt.plot(NaI.channels[NaI.first_channel:int(NaI.last_channel/2)], NaI.signal[NaI.first_channel:int(NaI.last_channel/2)], label=r"$^{152}$Eu NaI(Tl) data")
+        plt.plot(HPGe.channels[HPGe.first_channel:HPGe.last_channel], HPGe.signal[HPGe.first_channel:HPGe.last_channel], label=r"$^{152}$Eu HPGe data")
+        plt.yscale("log")
+        plt.xlabel("Energy [keV]",fontsize=15)
+        plt.ylabel("# Events",fontsize=15)
+        #custom_ticks = [10, 100, 1000,3000] 
+        #plt.yticks(custom_ticks)
+        plt.legend()
+        plt.title(r"$^{152}$Eu gamma spectrum",fontsize=16)
+        plt.show()
+    if unknown_plot:
+        uk = ManageData("HPGe_unknown.Spe",calibration_coeffs=calibration_coeffs)
+        uk.calibrate_data(calibration=True,background=background.signal,scale=False)
+        if fit_switch:
+            pass
+        else:
+            uk.plot_data(label="Unknown source",show_plot=False)
+            uk.ax.set_yscale("log")
+            plt.show()
     # # Plot other peaks in the 137Cs file, normal
     # Cs137_spike = ManageData("137Cs.Spe")
     # Cs137_spike.calibrate_data(calibration=True, background=background.signal, scale=False)
