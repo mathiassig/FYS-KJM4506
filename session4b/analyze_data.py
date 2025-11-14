@@ -195,7 +195,7 @@ class ManageData:
             # har redigert denne
             if self.model == "normal":
                 A_err, mu_err, sigma_err= np.sqrt(np.diag(self.pcov)) # , slope_err, intercept_err 
-                tekst = f'fit:\n' + f'$\mu = {self.popt[1]:.1f} \pm {mu_err:.1f}$,\n'
+                tekst = f'fit:\n' + f'$\mu = {self.popt[1]:.3f} \pm {mu_err:.3f}$,\n'
                 tekst += f'$\sigma = {self.popt[2]:.3f} \pm {sigma_err:.3f}$\n'
                 tekst+= f'$A = {self.popt[0]} \pm {A_err:.1f}$\n'
                 print(tekst)
@@ -326,7 +326,7 @@ if __name__ == "__main__":
     calibration_plot_germanium = False
     calibration_plot_NaI = False
     calibration_switch = True
-    fit_switch = False # whether to fit peaks with gaussian or not
+    fit_switch = True # whether to fit peaks with gaussian or not
     calibration_coeffs = [-0.26479855845655886,0.19007627854983625,0] # last one is dummy, order is reversed because of how class uses them
     calibration_coeffs_NaI = [40.44941239690077,3.2147663084228943,0]
 
@@ -602,7 +602,30 @@ if __name__ == "__main__":
         uk = ManageData("HPGe_unknown.Spe",calibration_coeffs=calibration_coeffs)
         uk.calibrate_data(calibration=True,background=background.signal,scale=False)
         if fit_switch:
-            pass
+            uk.plot_data(show_plot=False, label=rf"Unknown source")
+            max = int((10-calibration_coeffs[0])/calibration_coeffs[1]) # bin number of peak, found from energy level
+            width =8
+            uk.get_fit(
+                curve_start = max - width,
+                curve_stop = max + width,
+                init_guess = [3000, 10, width],   # Amplitude, mean, variance Guess for normal distribution
+                plot_fit = True,
+                show_plot = False, # plotting more peaks
+                model = "normal"
+            ) 
+            uk2 = ManageData(f"HPGe_unknown.Spe",calibration_coeffs=calibration_coeffs)
+            uk2.calibrate_data(calibration=calibration_switch, background=background.signal, scale=False)
+            uk2.plot_data(show_plot=False, label=rf"Unknown source")
+            width =10
+            max = int((60-calibration_coeffs[0])/calibration_coeffs[1]) # bin number of peak, found from energy level
+            uk2.get_fit(
+                curve_start = max - width,
+                curve_stop = max + width,
+                init_guess = [30000, 60, width],   # Amplitude, mean, variance Guess for normal distribution
+                plot_fit = True,
+                show_plot = True, # show after peak plotted
+                model = "normal"
+            ) 
         else:
             uk.plot_data(label="Unknown source",show_plot=False)
             uk.ax.set_yscale("log")
