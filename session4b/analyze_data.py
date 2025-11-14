@@ -319,21 +319,30 @@ def gamma_wrapper(x, A, k, loc, scale, slope, intercept):
 if __name__ == "__main__":
     # switches
     sources_plot = False
-    shapingtime_plot = True
+    shapingtime_plot = False
+    Co60_LOG = False
     calibration_plot_germanium = False
+    calibration_plot_NaI = False
     calibration_switch = True
     fit_switch = True # whether to fit peaks with gaussian or not
     calibration_coeffs = [-0.26479855845655886,0.19007627854983625,0] # last one is dummy, order is reversed because of how class uses them
+    calibration_coeffs_NaI = [40.44941239690077,3.2147663084228943]
 
+    ## Full energy peaks ##
     Ba_gamma_1 = 81.0 # keV
     Ba_gamma_2 = 356 # keV
     Cs_gamma = 661.659  # keV.
     Co_gamma_1 = 1173.2   # keV.
     Co_gamma_2 = 1332.5   # keV.
+    Eu_gamma_1 = 121.78300 # +-0.002 # keV
+    Eu_gamma_2 = 1408.0110 # +- 0.0140  # keV
     # model = "gamma"
+    ###########
 
     # find background for germanium
     background = ManageData("HPGe_background.Spe",create_fig=False)
+    # find background for NaI
+    background_NaI = ManageData("NaI(Tl)_background.Spe",create_fig=False)
 
     if calibration_plot_germanium:
         #calibration = ManageData("calibration.Spe") # use this to find calibration parameters
@@ -381,6 +390,44 @@ if __name__ == "__main__":
         else:
             calibration.plot_data(show_plot=True, label=r"$^Calibration data")
 
+    #### NaI(Tl) ###
+    if calibration_plot_NaI:
+        calibration = ManageData("NaI(Tl)_calibration.Spe") # use this to find calibration parameters
+        # this calibration spectrum used ??
+        calibration.calibrate_data(calibration=False, background=background_NaI.signal, scale=False)
+        if fit_switch:
+            calibration.plot_data(show_plot=False, label=r"$^Calibration data 152Eu NaI(Tl)")
+            width =20
+            max = 26 # bin number of peak
+            calibration.get_fit(
+                curve_start = max-width,
+                curve_stop = max+width,
+                init_guess = [120000, max, width],   # Amplitude, mean, variance. Guess for normal distribution 
+                plot_fit = True,
+                show_plot = False, # are plotting more peaks
+                model = "normal"
+            ) 
+            calibration2 = ManageData("NaI(Tl)_calibration.Spe") # use this to find calibration parameters
+            calibration2.calibrate_data(calibration=False, background=background_NaI.signal, scale=False)
+            calibration2.plot_data(show_plot=False, label=r"$^Calibration data 152Eu NaI(Tl)")
+            width = 40
+            max = 440 # bin number of peak, since this is pre-calibrated spectrum # 1173 keV
+            calibration2.get_fit(
+                curve_start = max-width,
+                curve_stop = max+width,
+                init_guess = [100000, max, width],  # Amplitude, mean, variance, slope, intercept. Guess for normal distribution with slope.
+                plot_fit = True,
+                show_plot = True,
+                model = "normal"
+            )
+        else:
+            calibration.plot_data(show_plot=True, label=r"$^Calibration data NaI(Tl)")
+        ## See peaks in channels 26 and 426
+        ## These should correspond to 121.7830+-0.0020 keV and 1408.0110 +- 0.0140 keV
+
+
+
+    ########################################################################################################3
     # Plot 137Cs for three different shaping times and find resolution
     if shapingtime_plot:
         shapingtimes = ["6micros","8micros","10micros"]
@@ -441,6 +488,8 @@ if __name__ == "__main__":
                     ax.tick_params(labelsize=15)
                     ax.legend()
                     plt.show()
+####################################################################################################
+    
     if sources_plot:
         sources = ["133Ba","137Cs_8micros","60Co"]
         for source in sources:
@@ -518,6 +567,19 @@ if __name__ == "__main__":
                     )
                 else:
                     data.plot_data(show_plot=True, label=r"$^{137}$Cs data")
+
+    if Co60_LOG:
+        data = ManageData(f"HPGe_60Co.Spe",calibration_coeffs=calibration_coeffs)
+        data.calibrate_data(calibration=calibration_switch, background=background.signal, scale=False)
+        plt.plot(data.channels[data.first_channel:data.last_channel], data.signal[data.first_channel:data.last_channel], label=f"60Co data")
+        plt.yscale("log")
+        plt.xlabel("Energy [keV]",fontsize=15)
+        plt.ylabel("# Events",fontsize=15)
+        custom_ticks = [10, 100, 1000,3000] 
+        plt.yticks(custom_ticks)
+        plt.legend()
+        plt.title("60Co gamma spectrum",fontsize=16)
+        plt.show()
     # # Plot other peaks in the 137Cs file, normal
     # Cs137_spike = ManageData("137Cs.Spe")
     # Cs137_spike.calibrate_data(calibration=True, background=background.signal, scale=False)
