@@ -47,35 +47,68 @@ def activity(A0,t,T2):
     lam = np.log(2)/T2
     return A0*np.exp(-lam*t)
 
-
-
+# switches
+all_peaks = False
+shaping_times = True
 ##### Energy peaks, all sources #################
-Es = [81.0,356.0,662.0,1173.2,1332.5]
-sigmas = [0.635, 0.639, 0.893,0.799, 0.843]
-sigma_errs = [0.030, 0.015, 0.038, 0.010, 0.012]
-resolutions = []
-resolution_errs = []
+if all_peaks:
+    Es = [81.0,356.0,662.0,1173.2,1332.5]
+    sigmas = [0.635, 0.639, 0.893,0.799, 0.843]
+    sigma_errs = [0.030, 0.015, 0.038, 0.010, 0.012]
+    resolutions = []
+    resolution_errs = []
 
-tekst = [] # re-initialize tekst
-for i in range(len(Es)):
-    resolution, resolution_err  =Res(sigmas[i],sigma_errs[i],Es[i])
-    res_theory = Res_theoretical(Es[i])
-    resolutions.append(resolution)
-    resolution_errs.append(resolution_err)
-    tekst.append(f" {Es[i]} & ${resolution:.3f}  \pm  {resolution_err:.3f}$ & {res_theory:.3f}\\\\")
-np.savetxt('resolution.txt', tekst, fmt='%s')
+    tekst = [] # re-initialize tekst
+    for i in range(len(Es)):
+        resolution, resolution_err  =Res(sigmas[i],sigma_errs[i],Es[i])
+        res_theory = Res_theoretical(Es[i])
+        resolutions.append(resolution)
+        resolution_errs.append(resolution_err)
+        tekst.append(f" {Es[i]} & ${resolution:.3f}  \pm  {resolution_err:.3f}$ & {res_theory:.3f}\\\\")
+    np.savetxt('resolution.txt', tekst, fmt='%s')
 
-from scipy.optimize import curve_fit
+    from scipy.optimize import curve_fit
 
-def my_function(x,a):
-    return a/x
-xdata = np.arange(70,1400,10)
-popt, pcov = curve_fit(my_function, np.array(Es),np.array(resolutions))
-plt.plot(xdata, my_function(xdata, *popt), color='red', label='Fitted curve')
-plt.errorbar(Es, resolutions, yerr=resolution_errs, fmt='.', color='blue', label='Energy peaks')
-plt.title("Resolution as a function of energy",fontsize=16)
-plt.xlabel("keV",fontsize=14)
-plt.ylabel("resolution [%]",fontsize=14)
-plt.legend()
-plt.savefig("figures/resolutions.png")
-plt.close()
+    def my_function(x,a):
+        return a/x
+    xdata = np.arange(70,1400,10)
+    popt, pcov = curve_fit(my_function, np.array(Es),np.array(resolutions))
+    plt.plot(xdata, my_function(xdata, *popt), color='red', label='Fitted curve')
+    plt.errorbar(Es, resolutions, yerr=resolution_errs, fmt='.', color='blue', label='Energy peaks')
+    plt.title("Resolution as a function of energy",fontsize=16)
+    plt.xlabel("keV",fontsize=14)
+    plt.ylabel("resolution [%]",fontsize=14)
+    plt.legend()
+    plt.savefig("figures/resolutions.png")
+    plt.close()
+if shaping_times:
+    shapingtimes = [6,8,10]
+    mus = [560.9,662.0,651.2]
+    sigmas = [1.368,1.201,0.966]
+    sigma_errs = [0.047,0.084,0.023]
+    resolutions = []
+    resolution_errs = []
+
+    tekst = [] # re-initialize tekst
+    for i in range(len(mus)):
+        resolution, resolution_err  =Res(sigmas[i],sigma_errs[i],mus[i])
+        res_theory = Res_theoretical(mus[i])
+        resolutions.append(resolution)
+        resolution_errs.append(resolution_err)
+        tekst.append(f" {shapingtimes[i]} & ${resolution:.3f}  \pm  {resolution_err:.3f}$\\\\")
+    np.savetxt('resolution_shapingtime.txt', tekst, fmt='%s')
+
+    # from scipy.optimize import curve_fit
+
+    # def my_function(x,a):
+    #     return a/x
+    # xdata = np.arange(70,1400,10)
+    # popt, pcov = curve_fit(my_function, np.array(mus),np.array(resolutions))
+    # plt.plot(xdata, my_function(xdata, *popt), color='red', label='Fitted curve')
+    # plt.errorbar(mus, resolutions, yerr=resolution_errs, fmt='.', color='blue', label='Energy peaks')
+    # plt.title("Resolution as a function of energy",fontsize=16)
+    # plt.xlabel("keV",fontsize=14)
+    # plt.ylabel("resolution [%]",fontsize=14)
+    # plt.legend()
+    # plt.savefig("figures/resolutions_shapingtime.png")
+    # plt.close()

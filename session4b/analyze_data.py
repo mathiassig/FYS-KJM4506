@@ -322,7 +322,7 @@ if __name__ == "__main__":
     shapingtime_plot = True
     calibration_plot_germanium = False
     calibration_switch = True
-    fit_switch = False # whether to fit peaks with gaussian or not
+    fit_switch = True # whether to fit peaks with gaussian or not
     calibration_coeffs = [-0.26479855845655886,0.19007627854983625,0] # last one is dummy, order is reversed because of how class uses them
 
     Ba_gamma_1 = 81.0 # keV
@@ -386,7 +386,8 @@ if __name__ == "__main__":
         shapingtimes = ["6micros","8micros","10micros"]
         iter = 0
         if not fit_switch:
-            fig, ax = plt.subplots()
+            fig, ax = plt.subplots(figsize=(8,6))
+            
         for shapingtime in shapingtimes:
             iter+=1
             Cs137 = ManageData(f"HPGe_137Cs_{shapingtime}.Spe",calibration_coeffs=calibration_coeffs)
@@ -394,15 +395,39 @@ if __name__ == "__main__":
             if fit_switch:
                 Cs137.plot_data(show_plot=False, label=f"137Cs {shapingtime} data")
                 max = int((Cs_gamma-calibration_coeffs[0])/calibration_coeffs[1]) # bin number of peak, found from energy level
-                width =10
-                Cs137.get_fit(
-                    curve_start = max-width,
-                    curve_stop = max+width,
-                    init_guess = [30000, Cs_gamma, width],   # Amplitude, mean, variance Guess for normal distribution 
-                    plot_fit = True,
-                    show_plot = True,
-                    model = "normal"
-                    )
+                if iter==1:
+                    width =20
+                    max = int((Cs_gamma-100-calibration_coeffs[0])/calibration_coeffs[1]) # bin number of peak, found from energy leve
+                    Cs137.get_fit(
+                        curve_start = max-width,
+                        curve_stop = max+width,
+                        init_guess = [30000, Cs_gamma-100, width],   # Amplitude, mean, variance Guess for normal distribution 
+                        plot_fit = True,
+                        show_plot = True,
+                        model = "normal"
+                        )
+                elif iter==3:
+                    max = int((Cs_gamma-10-calibration_coeffs[0])/calibration_coeffs[1]) # bin number of peak, found from energy level
+                    width =20
+                    Cs137.get_fit(
+                        curve_start = max-width,
+                        curve_stop = max+width,
+                        init_guess = [30000, Cs_gamma-10, width],   # Amplitude, mean, variance Guess for normal distribution 
+                        plot_fit = True,
+                        show_plot = True,
+                        model = "normal"
+                        )
+                else:
+                    max = int((Cs_gamma-calibration_coeffs[0])/calibration_coeffs[1]) # bin number of peak, found from energy level
+                    width =20
+                    Cs137.get_fit(
+                        curve_start = max-width,
+                        curve_stop = max+width,
+                        init_guess = [30000, Cs_gamma, width],   # Amplitude, mean, variance Guess for normal distribution 
+                        plot_fit = True,
+                        show_plot = True,
+                        model = "normal"
+                        )
             else:
                 ax.plot(Cs137.channels[Cs137.first_channel+2500:Cs137.last_channel-4000], Cs137.signal[Cs137.first_channel+2500:Cs137.last_channel-4000], label=f"137Cs {shapingtime} data")
                 if iter==3:
