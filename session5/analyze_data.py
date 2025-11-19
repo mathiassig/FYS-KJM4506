@@ -319,7 +319,7 @@ def gamma_wrapper(x, A, k, loc, scale, slope, intercept):
 if __name__ == "__main__":
     # switches
     alpha_plot = True
-    calibration_plot_alpha = True
+    calibration_plot_alpha = False
     calibration_plot_beta = False
     calibration_switch = True
     fit_switch = True # whether to fit peaks with gaussian or not
@@ -427,8 +427,42 @@ if __name__ == "__main__":
 
 
     if alpha_plot:
-        Pu238 = ManageData("Pu238.Spe")
-
+        Pu238 = ManageData("Pu238.Spe",calibration_coeffs=calibration_coeffs_alpha)
+        Cm244 = ManageData("Cm244.Spe",calibration_coeffs=calibration_coeffs_alpha)
+        Pu238.calibrate_data(calibration=True)
+        Cm244.calibrate_data(calibration=True)
+        if fit_switch:
+            #Pu238.plot_data(label="238Pu data",show_plot=False)
+            Cm244.plot_data(label="244Cm data",show_plot=False)
+            #Pu238.ax.set_yscale("log")
+            Cm244.ax.set_yscale("log")
+            # peak = 5.153 # MeV 
+            # max=int((peak-calibration_coeffs_alpha[0])/calibration_coeffs_alpha[1])
+            # width=10
+            # Pu238.get_fit(
+            #     curve_start = max-width,
+            #     curve_stop = max+width,
+            #     init_guess = [20, peak, width],   # Amplitude, mean, variance. Guess for normal distribution 
+            #     plot_fit = True,
+            #     show_plot = False, # are plotting more peaks
+            #     model = "normal"
+            # )
+            peak = 5.117 # MeV 
+            max=int((peak-calibration_coeffs_alpha[0])/calibration_coeffs_alpha[1])
+            width=5
+            Cm244.get_fit(
+                curve_start = max-width,
+                curve_stop = max+width,
+                init_guess = [100, peak, width],   # Amplitude, mean, variance. Guess for normal distribution 
+                plot_fit = True,
+                show_plot = True, # are plotting more peaks
+                model = "normal"
+            )
+        else:
+            Pu238.ax.set_yscale("log")
+            Cm244.ax.set_yscale("log")
+            Pu238.plot_data(label="238Pu data",show_plot=False)
+            Cm244.plot_data(label="244Cm data")
     # # Plot other peaks in the 137Cs file, normal
     # Cs137_spike = ManageData("137Cs.Spe")
     # Cs137_spike.calibrate_data(calibration=True, background=background.signal, scale=False)
