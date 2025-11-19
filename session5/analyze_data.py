@@ -237,7 +237,7 @@ class ManageData:
     def _title_label_legend(self):
         self.ax.set_title(f"subtracted background: {self.calibrate_background}, channel calibration: {self.calibrate_calibration}, scaled data: {self.calibrate_scale}")
         if self.calibrate_calibration: # if spectrum is calibrated
-            self.ax.set_xlabel("Energy [KeV]", fontsize=15)
+            self.ax.set_xlabel("Energy [MeV]", fontsize=15)
         else: # if not calibrated, return channel number
             self.ax.set_xlabel("Channel", fontsize=15)
         self.ax.set_ylabel("# events", fontsize=15)
@@ -322,7 +322,7 @@ if __name__ == "__main__":
     calibration_plot_alpha = False
     calibration_plot_beta = False
     calibration_switch = True
-    fit_switch = True # whether to fit peaks with gaussian or not
+    fit_switch = False # whether to fit peaks with gaussian or not
     calibration_coeffs_alpha = [2.5863219378316273, 0.006617660506775956,0] # last one is dummy, order is reversed because of how class uses them
 
 
