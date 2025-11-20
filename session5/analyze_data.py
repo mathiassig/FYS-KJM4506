@@ -157,7 +157,13 @@ class ManageData:
                 self.popt, self.pcov = curve_fit(f=gauss_wrapper, xdata=channel_slice,
                     ydata=signal_slice, p0=init_guess, method="lm")
                 signal_slice_model = gauss_wrapper(channel_slice, *self.popt)
-            
+            elif self.model == "half-normal": 
+                """
+                Model function is a half-gaussian
+                """
+                self.popt, self.pcov = curve_fit(f=halfgauss_wrapper, xdata=channel_slice,
+                ydata=signal_slice, p0=init_guess, method="lm")
+                signal_slice_model = halfgauss_wrapper(channel_slice, *self.popt)
             elif (self.model == "chisquare") or (self.model == "chi2"):
                 """
                 Model function is the chi square distribution.
@@ -184,8 +190,9 @@ class ManageData:
             else:
                 msg = "Please choose model = 'normal' or 'chisquare' or 'weibull' or 'gamma'."
                 raise ValueError(msg)
-                
-            #self.chisq, self.p = chisquare(f_obs=signal_slice, f_exp=signal_slice_model) denne lager bare kødd
+
+            self.chisq, self.p = chisquare(f_obs=signal_slice, f_exp=signal_slice_model, sum_check=False) # denne lager kødd hvis sum_check=True. f_obs = observert signal, f_exp = forventet signal. Returnerer hvor godt de passer
+            print(f"Chi2: {self.chisq}, P: {self.p}")
 
         if plot_fit:
             if init_guess is None:
@@ -194,6 +201,15 @@ class ManageData:
             
             # har redigert denne
             if self.model == "normal":
+                A_err, mu_err, sigma_err= np.sqrt(np.diag(self.pcov)) # , slope_err, intercept_err 
+                tekst = f'fit:\n' + f'$\mu = {self.popt[1]:.3f} \pm {mu_err:.3f}$,\n'
+                tekst += f'$\sigma = {self.popt[2]:.3f} \pm {sigma_err:.3f}$\n'
+                tekst+= f'$A = {self.popt[0]} \pm {A_err:.1f}$\n'
+                print(tekst)
+                # label += f'intercept = {self.popt[4]:.1f} $\pm$ {intercept_err:.1f}\n'
+                # label += f'slope = {self.popt[3]:.1f} $\pm$ {slope_err:.1f}\n'
+                # label += f'$\chi^2 = {self.chisq:.1f} / {curve_stop - curve_start}$\n'
+            elif self.model == "half-normal":
                 A_err, mu_err, sigma_err= np.sqrt(np.diag(self.pcov)) # , slope_err, intercept_err 
                 tekst = f'fit:\n' + f'$\mu = {self.popt[1]:.3f} \pm {mu_err:.3f}$,\n'
                 tekst += f'$\sigma = {self.popt[2]:.3f} \pm {sigma_err:.3f}$\n'
@@ -308,6 +324,8 @@ def gauss_wrapper(x, A, mu, sigma):
     Wrapped function.
     """
     return A*norm.pdf(x, mu, sigma)
+def halfgauss_wrapper(x, A,mu,sigma):
+    return A*norm.pdf(x,mu,sigma)*(np.sign(x-mu) + 1)*0.5
 
 def weibull_wrapper(x, A, lambd, k, loc, scale, slope, intercept):
     rv = exponweib(lambd, k, loc, scale)
@@ -319,7 +337,8 @@ def gamma_wrapper(x, A, k, loc, scale, slope, intercept):
 if __name__ == "__main__":
     # switches
     alpha_plot = False
-    bismuth_plot = True
+    bismuth_plot = False
+    clorine_plot = True
     calibration_plot_alpha = False
     calibration_plot_beta = False
     calibration_switch = True
@@ -516,6 +535,24 @@ if __name__ == "__main__":
             )
         else:
             Bi207.plot_data(label="207Bi data",show_plot=True)
+    if clorine_plot:
+        Cl36 = ManageData("Cl36.Spe",calibration_coeffs=calibration_coeffs_beta)
+        Cl36.calibrate_data(calibration=True)
+        if fit_switch:
+            Cl36.plot_data(label="36Cl data",show_plot=False)
+            max=63 # bin number
+            peak = max*calibration_coeffs_beta[1] + calibration_coeffs_beta[0]
+            width=300
+            Cl36.get_fit(
+                curve_start = max,
+                curve_stop = max+width,
+                init_guess = [50000, peak, width],   # Amplitude, mean, variance. Guess for normal distribution 
+                plot_fit = True,
+                show_plot = True, 
+                model = "half-normal"
+            )
+        else:
+            Cl36.plot_data(label="36Cl data", show_plot=True)
     # # Plot other peaks in the 137Cs file, normal
     # Cs137_spike = ManageData("137Cs.Spe")
     # Cs137_spike.calibrate_data(calibration=True, background=background.signal, scale=False)
