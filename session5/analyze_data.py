@@ -237,7 +237,7 @@ class ManageData:
     def _title_label_legend(self):
         self.ax.set_title(f"subtracted background: {self.calibrate_background}, channel calibration: {self.calibrate_calibration}, scaled data: {self.calibrate_scale}")
         if self.calibrate_calibration: # if spectrum is calibrated
-            self.ax.set_xlabel("Energy [MeV]", fontsize=15)
+            self.ax.set_xlabel("Energy [keV]", fontsize=15)
         else: # if not calibrated, return channel number
             self.ax.set_xlabel("Channel", fontsize=15)
         self.ax.set_ylabel("# events", fontsize=15)
@@ -318,12 +318,14 @@ def gamma_wrapper(x, A, k, loc, scale, slope, intercept):
 
 if __name__ == "__main__":
     # switches
-    alpha_plot = True
+    alpha_plot = False
+    bismuth_plot = True
     calibration_plot_alpha = False
     calibration_plot_beta = False
     calibration_switch = True
-    fit_switch = False # whether to fit peaks with gaussian or not
+    fit_switch = True # whether to fit peaks with gaussian or not
     calibration_coeffs_alpha = [2.5863219378316273, 0.006617660506775956,0] # last one is dummy, order is reversed because of how class uses them
+    calibration_coeffs_beta = [6.230345739531032, 3.0397569627542174,0]
 
 
     ## alpha lines ##
@@ -332,6 +334,14 @@ if __name__ == "__main__":
     Cm_line1= 5.805 # MeV
     Cm_line2= 5.763 # MeV
     ###########
+
+    ## Conversion electron lines ##
+    Bi_line1 = 481.6 # keV
+    Bi_line2 = 553.8 # keV
+    Bi_line3 = 975.6 # keV
+    Bi_line4 = 1047 # keV
+
+    ##########
 
     # no background for PIPS detector, vaccuum chamber
  
@@ -397,31 +407,55 @@ if __name__ == "__main__":
         calibration = ManageData("Bi207.Spe") # use this to find calibration parameters
         # this calibration spectrum used ??
         if fit_switch:
-            calibration.plot_data(show_plot=False, label=r"$^Calibration data 152Eu NaI(Tl)")
-            width =20
-            max = 26 # bin number of peak
+            calibration.plot_data(show_plot=False, label=r"$^Calibration data 207Bi")
+            width =5
+            max = 157 # bin number of peak
             calibration.get_fit(
                 curve_start = max-width,
                 curve_stop = max+width,
-                init_guess = [120000, max, width],   # Amplitude, mean, variance. Guess for normal distribution 
+                init_guess = [17500, max, width],   # Amplitude, mean, variance. Guess for normal distribution 
                 plot_fit = True,
                 show_plot = False, # are plotting more peaks
                 model = "normal"
             ) 
             calibration2 = ManageData("Bi207.Spe") # use this to find calibration parameters
-            calibration2.plot_data(show_plot=False, label=r"$^Calibration data 152Eu NaI(Tl)")
-            width = 40
-            max = 440 # bin number of peak, since this is pre-calibrated spectrum # 1173 keV
+            calibration2.plot_data(show_plot=False, label=r"$^Calibration data 207Bi")
+            width = 10
+            max = 180 # bin number of peak, since this is pre-calibrated spectrum # 1173 keV
             calibration2.get_fit(
                 curve_start = max-width,
                 curve_stop = max+width,
-                init_guess = [100000, max, width],  # Amplitude, mean, variance, slope, intercept. Guess for normal distribution with slope.
+                init_guess = [5260, max, width],  # Amplitude, mean, variance, slope, intercept. Guess for normal distribution with slope.
+                plot_fit = True,
+                show_plot = False,
+                model = "normal"
+            )
+            calibration3 = ManageData("Bi207.Spe") # use this to find calibration parameters
+            calibration3.plot_data(show_plot=False, label=r"$^Calibration data 207Bi")
+            width = 20
+            max = 320 # bin number of peak, since this is pre-calibrated spectrum # 1173 keV
+            calibration3.get_fit(
+                curve_start = max-width,
+                curve_stop = max+width,
+                init_guess = [5570, max, width],  # Amplitude, mean, variance, slope, intercept. Guess for normal distribution with slope.
+                plot_fit = True,
+                show_plot = False,
+                model = "normal"
+            )
+            calibration4 = ManageData("Bi207.Spe") # use this to find calibration parameters
+            calibration4.plot_data(show_plot=False, label=r"$^Calibration data 207Bi")
+            width = 20
+            max = 343 # bin number of peak, since this is pre-calibrated spectrum # 1173 keV
+            calibration4.get_fit(
+                curve_start = max-width,
+                curve_stop = max+width,
+                init_guess = [990, max, width],  # Amplitude, mean, variance, slope, intercept. Guess for normal distribution with slope.
                 plot_fit = True,
                 show_plot = True,
                 model = "normal"
             )
         else:
-            calibration.plot_data(show_plot=True, label=r"$^Calibration data NaI(Tl)")
+            calibration.plot_data(show_plot=True, label=r"$^Calibration data 207Bi")
         ## See peaks in channels 26 and 426
         ## These should correspond to 121.7830+-0.0020 keV and 1408.0110 +- 0.0140 keV
 
@@ -463,6 +497,25 @@ if __name__ == "__main__":
             Cm244.ax.set_yscale("log")
             Pu238.plot_data(label="238Pu data",show_plot=False)
             Cm244.plot_data(label="244Cm data")
+
+    if bismuth_plot:
+        Bi207 = ManageData("Bi207.Spe",calibration_coeffs=calibration_coeffs_beta)
+        Bi207.calibrate_data(calibration=True)
+        if fit_switch:
+            Bi207.plot_data(label="207Bi data",show_plot=False)
+            peak = Bi_line4
+            max=int((peak-calibration_coeffs_beta[0])/calibration_coeffs_beta[1])
+            width=5
+            Bi207.get_fit(
+                curve_start = max-width,
+                curve_stop = max+width,
+                init_guess = [990, peak, width],   # Amplitude, mean, variance. Guess for normal distribution 
+                plot_fit = True,
+                show_plot = True, 
+                model = "normal"
+            )
+        else:
+            Bi207.plot_data(label="207Bi data",show_plot=True)
     # # Plot other peaks in the 137Cs file, normal
     # Cs137_spike = ManageData("137Cs.Spe")
     # Cs137_spike.calibrate_data(calibration=True, background=background.signal, scale=False)

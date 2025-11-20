@@ -10,8 +10,8 @@ Cm_line1= 5.805 # MeV
 Cm_line2= 5.763 # MeV
 
 # switches
-alpha_switch = True
-beta_switch = False
+alpha_switch = False
+beta_switch = True
 
 # Definer en funksjon som beskriver kurven vi ønsker å tilpasse
 def polynomial(x, a, b, c):
@@ -49,10 +49,10 @@ if alpha_switch:
 
 if beta_switch:
     # kalibreringsdata
-    x_data = np.array([25.3, 425.4])
-    x_errors = np.array([0.1, 0.0])
-    y_data = np.array([Eu_gamma_1,Eu_gamma_2])
-    y_errors = np.array([Eu_gamma_1_err,Eu_gamma_2_err])
+    x_data = np.array([156.564, 179.979, 318.568, 342.692]) # channel number
+    x_errors = np.array([0.189, 0.706, 0.092, 0.248])
+    y_data = np.array([481.6,553.8,975.6,1047]) # keV # additional peaks, partially unresolved: 565.8 keV and 1059 keV
+    y_errors = None#np.array([])
 
     # Finne de beste parameterne for kurven
     params, covariance = curve_fit(line, x_data, y_data)
@@ -65,11 +65,11 @@ if beta_switch:
     y_fit = line(x_fit, a, b)
 
     # Plotting av data og tilpasset kurve
-    plt.errorbar(x_data, y_data, xerr=x_errors,yerr=y_errors, fmt='o',label='Data', color='red')
+    plt.errorbar(x_data, y_data, xerr=x_errors,yerr=y_errors, fmt='o',label='Bi207 data', color='red')
     plt.plot(x_fit, y_fit, label='Fitted line', color='blue')
-    plt.xlabel('channel number',fontsize=14)
+    plt.xlabel('Channel number',fontsize=14)
     plt.ylabel('keV',fontsize=14)
-    plt.title('Calibration linear fit NaI(Tl)',fontsize=16)
+    plt.title('Calibration linear fit Bi207 beta spectrum',fontsize=16)
     plt.legend()
     plt.grid()
     plt.show()
